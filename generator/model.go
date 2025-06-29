@@ -24,7 +24,7 @@ type genResponse struct {
 	Response string `json:"response"`
 }
 
-// NewOllama returns a Generator using the Ollama API
+// NewOllama returns a Generator using the Ollama APIa
 func NewOllama(model, url string) *OllamaGenerator {
 	return &OllamaGenerator{
 		Model: model,
