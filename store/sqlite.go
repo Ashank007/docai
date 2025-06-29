@@ -32,6 +32,20 @@ func (s *SQLiteStore) Init(path string) error {
 	);
 	`
 	_, err = s.db.Exec(stmt)
+	if err != nil {
+		return fmt.Errorf("failed to create chunk table: %w", err)
+	}
+	stmt2 := `
+		CREATE TABLE IF NOT EXISTS vectors (
+			id INTEGER PRIMARY KEY,
+			doc_name TEXT,
+			vector BLOB
+		);
+		`
+		_, err = s.db.Exec(stmt2)
+	if err != nil {
+		return fmt.Errorf("failed to create vectors table: %w", err)
+	}
 	return err
 }
 
@@ -74,9 +88,14 @@ func (s *SQLiteStore) ListFiles() ([]types.FileMeta, error) {
 
 
 func (s *SQLiteStore) DeleteFile(name string) error {
-	_, err := s.db.Exec(`DELETE FROM chunks WHERE doc_name = ?`, name)
+	_, err := s.db.Exec(`DELETE FROM vectors WHERE doc_name = ?`, name)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.Exec(`DELETE FROM chunks WHERE doc_name = ?`, name)
 	return err
 }
+
 
 func (s *SQLiteStore) Close() error {
 	return s.db.Close()

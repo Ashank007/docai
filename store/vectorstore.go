@@ -2,6 +2,7 @@ package store
 
 import (
 	//"errors"
+	"fmt"
 	"sort"
 	"sync"
 
@@ -38,7 +39,7 @@ func (m *MemoryVectorStore) SearchSimilar(query []float32, topK int) ([]int64, e
 		score float64
 	}
 	var results []result
-
+	fmt.Println("vectors: ",m.vectors)
 	for i, vec := range m.vectors {
 		sim, err := utils.CosineSimilarity(query, vec)
 		if err != nil {
@@ -46,7 +47,7 @@ func (m *MemoryVectorStore) SearchSimilar(query []float32, topK int) ([]int64, e
 		}
 		results = append(results, result{id: m.ids[i], score: sim})
 	}
-
+	fmt.Println("results: ",results)
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].score > results[j].score
 	})

@@ -35,7 +35,6 @@ func NewOllama(model, url string) *OllamaGenerator {
 // Generate constructs the prompt and gets completion from Ollama
 func (g *OllamaGenerator) Generate(query string, contexts []string) (string, error) {
 	prompt := g.constructPrompt(query, contexts)
-
 	reqBody := genRequest{
 		Model:  g.Model,
 		Prompt: prompt,
