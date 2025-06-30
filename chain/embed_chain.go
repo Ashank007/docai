@@ -28,7 +28,7 @@ func (e *EmbedChain) Run(input string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("embedding error: %w", err)
 		}
-		err = e.VectorDB.AddVector(id, vec)
+		err = e.VectorDB.AddVector(id, vec,e.DocName)
 		if err != nil {
 			return "", fmt.Errorf("vector store error: %w", err)
 		}

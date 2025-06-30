@@ -19,7 +19,7 @@ func (b *ChainBuilder) WithQueryChain(chain *QueryChain) *ChainBuilder {
 	return b
 }
 
-func (b *ChainBuilder) BuildEmbed() Chain {
+func (b *ChainBuilder) BuildEmbed() *EmbedChain {
 	return b.embedChain
 }
 

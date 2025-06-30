@@ -14,7 +14,8 @@ type MetadataStore interface {
 
 // VectorStore manages vector representations and similarity search
 type VectorStore interface {
-	AddVector(id int64, vec []float32) error
-	SearchSimilar(query []float32, topK int) ([]int64, error)
+	AddVector(id int64, vec []float32, docName string) error
+	SearchSimilar(query []float32, topK int,docNameFilter string) ([]int64, error)
 	Reset() error
+	DeleteVectorsByDoc(docName string) error
 }

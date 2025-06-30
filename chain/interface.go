@@ -1,5 +1,5 @@
 package chain
 
 type Chain interface {
-	Run(input string) (string, error)
+  Run(query string, docNameFilter string) (string, error)
 }

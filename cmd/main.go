@@ -1,16 +1,19 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
+	"os"
+	"strings"
 
+	"github.com/Ashank007/docai/chain"
 	"github.com/Ashank007/docai/chunker"
 	"github.com/Ashank007/docai/embedder"
 	"github.com/Ashank007/docai/generator"
 	"github.com/Ashank007/docai/reader"
 	"github.com/Ashank007/docai/retriever"
 	"github.com/Ashank007/docai/store"
-	//"github.com/Ashank007/docai/types"
 )
 
 func main() {
@@ -22,63 +25,87 @@ func main() {
 
 	meta := store.NewSQLiteStore()
 	if err := meta.Init("test.db"); err != nil {
-		log.Fatal("❌ SQLite init failed:", err)
+		log.Fatal("❌ SQLite MetadataStore init failed:", err)
 	}
 	defer meta.Close()
 
 	vector := store.NewMemoryVectorStore()
+
 	retr := retriever.NewCosineRetriever(vector, meta, embed.Embed)
 
-	// STEP 2: Read PDF
-	text, err := pdf.Extract("./testdata/sample.pdf")
-	if err != nil {
-		log.Fatal("❌ PDF extract failed:", err)
+	// Build the chains explicitly for clarity
+	actualEmbedChain := &chain.EmbedChain{
+		DocName:   "",
+		Chunker:   ch,
+		EmbedFunc: embed.Embed,
+		MetaStore: meta,
+		VectorDB:  vector,
 	}
 
-	// STEP 3: Chunk the PDF text
-	chunks, err := ch.Chunk(text)
-	if err != nil {
-		log.Fatal("❌ Chunking failed:", err)
+	actualQueryChain := &chain.QueryChain{
+		EmbedFunc: embed.Embed,
+		Retriever: retr,
+		Generator: gen.Generate,
 	}
 
-	// STEP 4: Embed and Store each chunk
-	docName := "sample"
-	for i, chunk := range chunks {
-		chunk.Source = docName
-		chunk.Position = i
+	// Use the ChainBuilder
+	chainBuilder := chain.NewChainBuilder().
+		WithEmbedChain(actualEmbedChain).
+		WithQueryChain(actualQueryChain)
 
-		id, err := meta.SaveChunk(docName, chunk)
+	// Retrieve the chains from the builder
+	// CORRECTED LINE: embedChain now receives *chain.EmbedChain
+	embedChain := chainBuilder.BuildEmbed() // <--- CHANGE IS HERE
+	queryChain := chainBuilder.BuildQuery()
+
+	// STEP 2: Read and Process PDF(s)
+	documentsToProcess := map[string]string{
+		"sample_pdf":  "./testdata/sample.pdf",
+		"another_doc": "./testdata/another_document.pdf",
+	}
+
+	for docName, filePath := range documentsToProcess {
+		fmt.Printf("\nProcessing document: %s (%s)\n", docName, filePath)
+		text, err := pdf.Extract(filePath)
 		if err != nil {
-			log.Fatalf("❌ Failed to save chunk %d: %v", i, err)
+			log.Printf("⚠️ PDF extract failed for %s: %v. Skipping this document.\n", docName, err)
+			continue
 		}
 
-		vec, err := embed.Embed(chunk.Text)
+		embedChain.DocName = docName
+		_, err = embedChain.Run(text)
 		if err != nil {
-			log.Fatalf("❌ Failed to embed chunk %d: %v", i, err)
+			log.Fatalf("❌ EmbedChain failed for %s: %v", docName, err)
+		}
+		fmt.Printf("✅ Document '%s' processed and embedded successfully.\n", docName)
+	}
+
+	// STEP 3: Ask a question with optional document filtering
+	reader := bufio.NewReader(os.Stdin)
+
+	for {
+		fmt.Print("\n❓ Enter your query (or type 'exit' to quit): ")
+		query, _ := reader.ReadString('\n')
+		query = strings.TrimSpace(query)
+
+		if query == "exit" {
+			fmt.Println("Exiting. Goodbye!")
+			break
 		}
 
-		if err := vector.AddVector(id, vec); err != nil {
-			log.Fatalf("❌ Failed to store vector for chunk %d: %v", i, err)
+		fmt.Print("📄 Enter document name to filter (leave empty for all documents): ")
+		docNameFilter, _ := reader.ReadString('\n')
+		docNameFilter = strings.TrimSpace(docNameFilter)
+
+		fmt.Printf("\nSearching for: '%s' in document: '%s' (empty means all)\n", query, docNameFilter)
+
+		answer, err := queryChain.Run(query, docNameFilter)
+		if err != nil {
+			log.Fatalf("❌ QueryChain failed: %v", err)
 		}
-	}
 
-	// STEP 5: Ask a question
-	query := "What is the main topic of this document?"
-	retrievedChunks, err := retr.Retrieve(query, 3)
-	if err != nil {
-		log.Fatal("❌ Retrieval failed:", err)
+		// STEP 4: Show the result
+		fmt.Println("\n🧠 Final Answer:\n-----------------\n" + answer)
 	}
-
-	var contextTexts []string
-	for _, c := range retrievedChunks {
-		contextTexts = append(contextTexts, c.Chunk.Text)
-	}
-
-	answer, err := gen.Generate(query, contextTexts)
-	if err != nil {
-		log.Fatal("❌ Generation failed:", err)
-	}
-
-	// STEP 6: Show the result
-	fmt.Println("\n🧠 Final Answer:\n-----------------\n" + answer)
 }
+

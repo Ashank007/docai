@@ -2,7 +2,7 @@ package chain
 
 import (
 	//"strings"
-
+  "fmt"
 	//"github.com/Ashank007/docai/embedder"
 	"github.com/Ashank007/docai/retriever"
 	//"github.com/Ashank007/docai/generator"
@@ -14,10 +14,12 @@ type QueryChain struct {
 	Generator func(string, []string) (string, error)
 }
 
-func (q *QueryChain) Run(query string) (string, error) {
-	chunks, err := q.Retriever.Retrieve(query, 4)
+func (q *QueryChain) Run(query string, docNameFilter string) (string, error) { // <--- CORRECTED LINE HERE
+	// Retriever.Retrieve needs to be updated to accept docNameFilter
+	// This call is now correct as retriever.Retriever interface is fixed.
+	chunks, err := q.Retriever.Retrieve(query, 4, docNameFilter)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("retrieval failed: %w", err) // Use fmt.Errorf for better error wrapping
 	}
 
 	var contexts []string
@@ -27,3 +29,4 @@ func (q *QueryChain) Run(query string) (string, error) {
 
 	return q.Generator(query, contexts)
 }
+

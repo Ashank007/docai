@@ -22,13 +22,13 @@ func NewCosineRetriever(vdb store.VectorStore, mdb store.MetadataStore, embed fu
 	}
 }
 
-func (r *CosineRetriever) Retrieve(query string, topK int) ([]types.RetrievedChunk, error) {
+func (r *CosineRetriever) Retrieve(query string, topK int,docNameFilter string) ([]types.RetrievedChunk, error) {
 	queryVec, err := r.EmbedFunc(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to embed query: %w", err)
 	}
 
-	ids, err := r.VectorDB.SearchSimilar(queryVec, topK)
+	ids, err := r.VectorDB.SearchSimilar(queryVec, topK,docNameFilter)
 	if err != nil {
 		return nil, fmt.Errorf("vector search failed: %w", err)
 	}

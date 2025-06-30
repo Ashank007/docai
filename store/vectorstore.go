@@ -11,26 +11,46 @@ import (
 
 type MemoryVectorStore struct {
 	mu      sync.RWMutex
-	vectors [][]float32
-	ids     []int64
+	data []struct {
+		ID      int64
+		Vector  []float32
+		DocName string // New field to store the document name
+	}
+
 }
 
 func NewMemoryVectorStore() *MemoryVectorStore {
 	return &MemoryVectorStore{
-		vectors: make([][]float32, 0),
-		ids:     make([]int64, 0),
+		data: make([]struct{ ID int64; Vector []float32; DocName string }, 0),
 	}
 }
 
-func (m *MemoryVectorStore) AddVector(id int64, vec []float32) error {
+func (m *MemoryVectorStore) AddVector(id int64, vec []float32, docName string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.ids = append(m.ids, id)
-	m.vectors = append(m.vectors, vec)
+
+	// Check if ID already exists and update, or append
+	found := false
+	for i, item := range m.data {
+		if item.ID == id {
+			m.data[i].Vector = vec
+			m.data[i].DocName = docName
+			found = true
+			break
+		}
+	}
+	if !found {
+		m.data = append(m.data, struct {
+			ID      int64
+			Vector  []float32
+			DocName string
+		}{ID: id, Vector: vec, DocName: docName})
+	}
+
 	return nil
 }
 
-func (m *MemoryVectorStore) SearchSimilar(query []float32, topK int) ([]int64, error) {
+func (m *MemoryVectorStore) SearchSimilar(query []float32, topK int, docNameFilter string) ([]int64, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -39,15 +59,24 @@ func (m *MemoryVectorStore) SearchSimilar(query []float32, topK int) ([]int64, e
 		score float64
 	}
 	var results []result
-	fmt.Println("vectors: ",m.vectors)
-	for i, vec := range m.vectors {
-		sim, err := utils.CosineSimilarity(query, vec)
+
+	fmt.Println("vectors: ",m.data) // Changed from m.vectors to m.data to show full stored info
+	for _, item := range m.data { // Iterate over the new data slice
+		// Apply docNameFilter: if filter is not empty, check for match
+		if docNameFilter != "" && item.DocName != docNameFilter {
+			continue // Skip this vector if it doesn't match the filter
+		}
+
+		sim, err := utils.CosineSimilarity(query, item.Vector)
 		if err != nil {
+			// Log error if needed, but continue processing other vectors
+			// fmt.Printf("Error calculating cosine similarity for id %d: %v\n", item.ID, err)
 			continue
 		}
-		results = append(results, result{id: m.ids[i], score: sim})
+		results = append(results, result{id: item.ID, score: sim})
 	}
 	fmt.Println("results: ",results)
+
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].score > results[j].score
 	})
@@ -68,7 +97,24 @@ func (m *MemoryVectorStore) SearchSimilar(query []float32, topK int) ([]int64, e
 func (m *MemoryVectorStore) Reset() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.ids = []int64{}
-	m.vectors = [][]float32{}
+	m.data = []struct{ ID int64; Vector []float32; DocName string }{} // Clear the new data slice
+	return nil
+}
+
+func (m *MemoryVectorStore) DeleteVectorsByDoc(docName string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	var newData []struct {
+		ID      int64
+		Vector  []float32
+		DocName string
+	}
+	for _, item := range m.data {
+		if item.DocName != docName {
+			newData = append(newData, item)
+		}
+	}
+	m.data = newData
 	return nil
 }
