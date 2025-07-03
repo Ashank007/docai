@@ -32,7 +32,7 @@ The project is structured to be modular, allowing core functionalities like docu
     * [Download Ollama](https://ollama.com/download)
 3.  **Ollama Models**: Pull the required models using Ollama CLI:
     ```bash
-    ollama pull nomic-embed-text
+    ollama pull nomic-embed-text # Can use any
     ollama pull llama3.1 # Or your preferred LLM like llama3, mistral, etc.
     ```
 
@@ -114,7 +114,7 @@ The core summarization logic is exposed as a Go package pkg/summarizer, allowing
 
 Installation
 ```
-go get https://github.com/Ashank007/docai/pkg/summarizer
+go get https://github.com/Ashank007/docai/summarizer
 ```
 ### Example Usage
 ```
@@ -127,7 +127,7 @@ import (
 	"https://github.com/Ashank007/docai/chunker"
 	"https://github.com/Ashank007/docai/generator"
 	"https://github.com/Ashank007/docai/reader"
-	"https://github.com/Ashank007/docai/pkg/summarizer"
+	"https://github.com/Ashank007/docai/summarizer"
 )
 
 func main() {
@@ -190,8 +190,7 @@ func main() {
 │   └── memory.go         # In-memory implementation for vector store
 ├── types/
 │   └── types.go          # Core data structures (e.g., Chunk, Document)
-└── pkg/
-    └── summarizer/
+└── summarizer/
         └── summarizer.go # Standalone library for document summarization
 ```
 ## 🤝 Contributing
